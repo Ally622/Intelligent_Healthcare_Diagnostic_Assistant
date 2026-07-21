@@ -1,18 +1,7 @@
 # ============================================================
-# MODULE 4: ML Classifier — Supervised Diagnosis
-# Team Member 3
-#
-# AI Concepts:
-# - Supervised Learning
-# - Decision Trees
-# - Random Forest
-# - Gradient Boosting
-# - Classification
-#
-# Purpose:
-# Uses machine learning algorithms to predict diseases
-# from patient symptoms and selects the best-performing
-# model automatically.
+# MODULE 4: Machine Learning Classifier
+# Covers: Week 9 (Supervised Learning)
+# Uses Kaggle Medical Dataset
 # ============================================================
 
 import warnings
@@ -24,291 +13,191 @@ import matplotlib.pyplot as plt
 
 from typing import Dict, List
 
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import (
-    RandomForestClassifier,
-    GradientBoostingClassifier
-)
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import (
-    train_test_split,
-    cross_val_score
-)
-from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    confusion_matrix,
-    ConfusionMatrixDisplay
-)
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.metrics import classification_report, confusion_matrix
 
 
 class MLDiagnosticClassifier:
     """
-    Machine Learning Diagnostic Module.
+    Machine Learning Diagnostic Classifier
 
-    Trains multiple supervised learning models
-    and automatically selects the best-performing
-    classifier.
+    Algorithms:
+    - Decision Tree
+    - Random Forest
+    - Gradient Boosting
+
+    Uses the Kaggle medical symptom dataset.
     """
-
-    # ---------------------------------------------------
-    # Symptoms used as model features
-    # ---------------------------------------------------
-
-    SYMPTOM_FEATURES = [
-
-        "fever",
-        "cough",
-        "fatigue",
-        "headache",
-        "body_aches",
-        "loss_of_smell",
-        "chest_pain",
-        "rash",
-        "joint_pain",
-        "shortness_of_breath",
-        "sweating",
-        "frequent_urination",
-        "excessive_thirst",
-        "blurred_vision",
-        "night_sweats",
-        "weight_loss",
-        "stiff_neck",
-        "light_sensitivity"
-
-    ]
-
-    # ---------------------------------------------------
-    # Disease Labels
-    # ---------------------------------------------------
-
-    DISEASE_LABELS = [
-
-        "flu",
-        "covid19",
-        "dengue",
-        "cardiac_event",
-        "diabetes",
-        "common_cold",
-        "tuberculosis",
-        "meningitis"
-
-    ]
-
-    # ---------------------------------------------------
 
     def __init__(self):
 
         self.models = {
 
-            "Decision Tree":
+            "Decision Tree": DecisionTreeClassifier(
+                criterion="entropy",
+                max_depth=8,
+                random_state=42
+            ),
 
-                DecisionTreeClassifier(
-                    criterion="entropy",
-                    max_depth=8,
-                    random_state=42
-                ),
+            "Random Forest": RandomForestClassifier(
+                n_estimators=100,
+                max_depth=10,
+                random_state=42
+            ),
 
-            "Random Forest":
-
-                RandomForestClassifier(
-                    n_estimators=100,
-                    max_depth=10,
-                    random_state=42
-                ),
-
-            "Gradient Boosting":
-
-                GradientBoostingClassifier(
-                    n_estimators=100,
-                    learning_rate=0.1,
-                    random_state=42
-                )
-
+            "Gradient Boosting": GradientBoostingClassifier(
+                n_estimators=100,
+                learning_rate=0.1,
+                random_state=42
+            )
         }
+
+        self.label_encoder = LabelEncoder()
 
         self.best_model = None
         self.best_model_name = None
 
-        self.label_encoder = LabelEncoder()
-
         self.is_trained = False
 
-    # ---------------------------------------------------
-    # Generate Synthetic Dataset
-    # ---------------------------------------------------
+        self.symptom_features = []
 
-    def generate_synthetic_data(
-        self,
-        samples: int = 2000
-    ) -> pd.DataFrame:
+    # ======================================================
+    # Load Dataset
+    # ======================================================
 
-        np.random.seed(42)
+    def load_dataset(self):
 
-        disease_profiles = {
+        df = pd.read_csv("data/patient_records.csv")
 
-            "flu": {
-                "fever": 0.90,
-                "cough": 0.85,
-                "fatigue": 0.88,
-                "headache": 0.70,
-                "body_aches": 0.80,
-                "loss_of_smell": 0.20
-            },
+        # Remove duplicate rows
+        df = df.drop_duplicates()
 
-            "covid19": {
-                "fever": 0.88,
-                "cough": 0.80,
-                "fatigue": 0.90,
-                "loss_of_smell": 0.85,
-                "headache": 0.65,
-                "body_aches": 0.60
-            },
+        # Replace missing values with empty strings
+        df = df.fillna("")
 
-            "dengue": {
-                "fever": 0.98,
-                "rash": 0.75,
-                "joint_pain": 0.85,
-                "headache": 0.90,
-                "fatigue": 0.80,
-                "body_aches": 0.88
-            },
+        # Rename disease column
+        df.rename(columns={"Disease": "disease"}, inplace=True)
 
-            "cardiac_event": {
-                "chest_pain": 0.92,
-                "shortness_of_breath": 0.88,
-                "fatigue": 0.70,
-                "sweating": 0.75
-            },
+        return df
 
-            "diabetes": {
-                "fatigue": 0.82,
-                "frequent_urination": 0.95,
-                "excessive_thirst": 0.92,
-                "blurred_vision": 0.70,
-                "weight_loss": 0.50
-            },
+    # ======================================================
+    # Data Preprocessing
+    # ======================================================
 
-            "common_cold": {
-                "cough": 0.90,
-                "fever": 0.50,
-                "headache": 0.60,
-                "fatigue": 0.55,
-                "body_aches": 0.50
-            },
+    def preprocess_data(self, df):
 
-            "tuberculosis": {
-                "cough": 0.95,
-                "weight_loss": 0.85,
-                "night_sweats": 0.80,
-                "fatigue": 0.88,
-                "fever": 0.70
-            },
+        symptom_columns = [
+            col for col in df.columns
+            if col.startswith("Symptom")
+        ]
 
-            "meningitis": {
-                "headache": 0.95,
-                "stiff_neck": 0.90,
-                "fever": 0.92,
-                "light_sensitivity": 0.85,
-                "fatigue": 0.80
-            }
+        symptoms = set()
 
-        }
+        # Collect every unique symptom
+        for col in symptom_columns:
 
-        records = []
+            values = (
+                df[col]
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                .str.replace(" ", "_", regex=False)
+            )
 
-        samples_per_disease = samples // len(disease_profiles)
+            values = values[values != ""]
 
-        for disease, profile in disease_profiles.items():
+            symptoms.update(values.tolist())
 
-            for _ in range(samples_per_disease):
+        self.symptom_features = sorted(symptoms)
 
-                patient = {
-                    feature: 0
-                    for feature in self.SYMPTOM_FEATURES
-                }
+        processed = []
 
-                for symptom, probability in profile.items():
+        for _, row in df.iterrows():
 
-                    patient[symptom] = int(
-                        np.random.rand() < probability
-                    )
+            patient = {feature: 0 for feature in self.symptom_features}
 
-                # Add 5% random noise
-                for feature in self.SYMPTOM_FEATURES:
+            for col in symptom_columns:
 
-                    if (
-                        patient[feature] == 0
-                        and np.random.rand() < 0.05
-                    ):
-                        patient[feature] = 1
+                symptom = str(row[col]).strip().lower()
 
-                patient["disease"] = disease
+                symptom = symptom.replace(" ", "_")
 
-                records.append(patient)
+                if symptom in patient:
 
-        dataframe = pd.DataFrame(records)
+                    patient[symptom] = 1
 
-        dataframe = dataframe.sample(
-            frac=1,
-            random_state=42
-        ).reset_index(drop=True)
+            patient["disease"] = row["disease"]
 
-        return dataframe
+            processed.append(patient)
 
-    # ---------------------------------------------------
+        processed_df = pd.DataFrame(processed)
+
+        return processed_df
+
+    # ======================================================
     # Train Models
-    # ---------------------------------------------------
+    # ======================================================
 
-    def train(
-        self,
-        verbose: bool = True
-    ) -> Dict:
+    def train(self, verbose=True):
 
-        dataset = self.generate_synthetic_data()
+        raw_df = self.load_dataset()
 
-        X = dataset[self.SYMPTOM_FEATURES]
+        df = self.preprocess_data(raw_df)
 
-        y = self.label_encoder.fit_transform(
-            dataset["disease"]
-        )
+        X = df[self.symptom_features]
+
+        y = self.label_encoder.fit_transform(df["disease"])
 
         X_train, X_test, y_train, y_test = train_test_split(
+
             X,
             y,
+
             test_size=0.20,
+
             random_state=42,
+
             stratify=y
+
         )
 
         self.X_test = X_test
+
         self.y_test = y_test
+
+        best_accuracy = 0
 
         results = {}
 
-        best_accuracy = 0
         if verbose:
+
             print("=" * 60)
+
             print("Training Machine Learning Models")
+
             print("=" * 60)
 
         for name, model in self.models.items():
 
             model.fit(X_train, y_train)
 
-            predictions = model.predict(X_test)
-
-            accuracy = accuracy_score(
-                y_test,
-                predictions
-            )
+            accuracy = model.score(X_test, y_test)
 
             cv_scores = cross_val_score(
+
                 model,
+
                 X,
+
                 y,
+
                 cv=5,
+
                 scoring="accuracy"
+
             )
 
             results[name] = {
@@ -328,8 +217,11 @@ class MLDiagnosticClassifier:
                 print(f"Test Accuracy : {accuracy:.4f}")
 
                 print(
+
                     f"Cross Validation : "
+
                     f"{cv_scores.mean():.4f} ± {cv_scores.std():.4f}"
+
                 )
 
             if accuracy > best_accuracy:
@@ -346,104 +238,68 @@ class MLDiagnosticClassifier:
 
             print("\nBest Model")
 
-            print(f"{self.best_model_name}")
+            print(self.best_model_name)
 
             print(f"Accuracy : {best_accuracy:.4f}")
 
         return results
-
-    # ---------------------------------------------------
+        # ======================================================
     # Predict Disease
-    # ---------------------------------------------------
+    # ======================================================
 
-    def predict(
-        self,
-        symptoms: List[str]
-    ) -> Dict:
+    def predict(self, symptoms: List[str]) -> Dict:
 
         if not self.is_trained:
-
             self.train(verbose=False)
 
         symptoms = [
-            symptom.lower().replace(" ", "_")
-            for symptom in symptoms
+            s.strip().lower().replace(" ", "_")
+            for s in symptoms
         ]
 
-        feature_vector = np.array([
+        feature_vector = np.zeros(len(self.symptom_features))
 
-            [
+        for i, feature in enumerate(self.symptom_features):
+            if feature in symptoms:
+                feature_vector[i] = 1
 
-                1 if feature in symptoms else 0
+        prediction = self.best_model.predict([feature_vector])[0]
 
-                for feature in self.SYMPTOM_FEATURES
+        probabilities = self.best_model.predict_proba([feature_vector])[0]
 
-            ]
-
-        ])
-
-        prediction = self.best_model.predict(
-            feature_vector
-        )[0]
-
-        probabilities = self.best_model.predict_proba(
-            feature_vector
-        )[0]
-
-        disease = self.label_encoder.inverse_transform(
-            [prediction]
-        )[0]
+        disease = self.label_encoder.inverse_transform([prediction])[0]
 
         classes = self.label_encoder.inverse_transform(
-
             np.arange(len(probabilities))
-
         )
 
         ranked = sorted(
-
             zip(classes, probabilities),
-
-            key=lambda item: item[1],
-
+            key=lambda x: x[1],
             reverse=True
-
         )
 
         return {
 
             "diagnosis": disease,
 
-            "confidence": round(
-
-                float(probabilities[prediction]),
-
-                4
-
-            ),
+            "confidence": round(float(max(probabilities)), 4),
 
             "top_predictions": ranked[:5],
 
             "model_used": self.best_model_name,
 
-            "feature_vector": feature_vector.tolist()[0]
+            "feature_vector": feature_vector.astype(int).tolist()
 
         }
 
-    # ---------------------------------------------------
+    # ======================================================
     # Agent Interface
-    # ---------------------------------------------------
+    # ======================================================
 
-    def analyze(
-        self,
-        percept
-    ) -> Dict:
+    def analyze(self, percept):
 
-        result = self.predict(
-
-            percept.symptoms
-
-        )
+        result = self.predict(percept.symptoms)
 
         result["summary"] = (
 
@@ -457,21 +313,16 @@ class MLDiagnosticClassifier:
 
         return result
 
-    # ---------------------------------------------------
-    # Plot Evaluation
-    # ---------------------------------------------------
+    # ======================================================
+    # Evaluation
+    # ======================================================
 
     def plot_evaluation(self):
 
         if not self.is_trained:
-
             self.train(verbose=False)
 
-        predictions = self.best_model.predict(
-
-            self.X_test
-
-        )
+        predictions = self.best_model.predict(self.X_test)
 
         print("\nClassification Report\n")
 
@@ -489,7 +340,7 @@ class MLDiagnosticClassifier:
 
         )
 
-        confusion = confusion_matrix(
+        cm = confusion_matrix(
 
             self.y_test,
 
@@ -497,29 +348,61 @@ class MLDiagnosticClassifier:
 
         )
 
-        plt.figure(figsize=(8, 7))
+        plt.figure(figsize=(10,8))
 
-        display = ConfusionMatrixDisplay(
+        plt.imshow(cm, cmap="Blues")
 
-            confusion_matrix=confusion,
+        plt.title("Confusion Matrix")
 
-            display_labels=self.label_encoder.classes_
+        plt.xlabel("Predicted")
+
+        plt.ylabel("Actual")
+
+        plt.colorbar()
+
+        ticks = np.arange(len(self.label_encoder.classes_))
+
+        plt.xticks(
+
+            ticks,
+
+            self.label_encoder.classes_,
+
+            rotation=90,
+
+            fontsize=8
 
         )
 
-        display.plot(
+        plt.yticks(
 
-            cmap="Blues",
+            ticks,
 
-            values_format="d"
+            self.label_encoder.classes_,
 
-        )
-
-        plt.title(
-
-            f"Confusion Matrix ({self.best_model_name})"
+            fontsize=8
 
         )
+
+        for i in range(cm.shape[0]):
+
+            for j in range(cm.shape[1]):
+
+                plt.text(
+
+                    j,
+
+                    i,
+
+                    cm[i, j],
+
+                    ha="center",
+
+                    va="center",
+
+                    fontsize=6
+
+                )
 
         plt.tight_layout()
 
@@ -531,41 +414,29 @@ class MLDiagnosticClassifier:
 
         )
 
-        if hasattr(
-
-            self.best_model,
-
-            "feature_importances_"
-
-        ):
+        if hasattr(self.best_model, "feature_importances_"):
 
             importance = self.best_model.feature_importances_
 
-            indices = np.argsort(
+            indices = np.argsort(importance)[::-1]
 
-                importance
+            top = 20
 
-            )[::-1]
-
-            plt.figure(figsize=(10, 6))
+            plt.figure(figsize=(12,6))
 
             plt.bar(
 
-                range(len(self.SYMPTOM_FEATURES)),
+                range(top),
 
-                importance[indices]
+                importance[indices[:top]]
 
             )
 
             plt.xticks(
 
-                range(len(self.SYMPTOM_FEATURES)),
+                range(top),
 
-                np.array(
-
-                    self.SYMPTOM_FEATURES
-
-                )[indices],
+                np.array(self.symptom_features)[indices[:top]],
 
                 rotation=90
 
@@ -573,7 +444,7 @@ class MLDiagnosticClassifier:
 
             plt.title(
 
-                f"Feature Importance ({self.best_model_name})"
+                f"Top {top} Important Symptoms ({self.best_model_name})"
 
             )
 
@@ -590,9 +461,9 @@ class MLDiagnosticClassifier:
         plt.show()
 
 
-# ---------------------------------------------------
-# Standalone Testing
-# ---------------------------------------------------
+# ============================================================
+# Testing
+# ============================================================
 
 if __name__ == "__main__":
 
@@ -600,24 +471,18 @@ if __name__ == "__main__":
 
     classifier.train()
 
-    prediction = classifier.predict(
-
-        [
-
-            "fever",
-
-            "cough",
-
-            "fatigue",
-
-            "loss of smell"
-
-        ]
-
-    )
-
     print("\nPrediction Result\n")
 
-    print(prediction)
+    result = classifier.predict([
+
+        "itching",
+
+        "skin_rash",
+
+        "nodal_skin_eruptions"
+
+    ])
+
+    print(result)
 
     classifier.plot_evaluation()
