@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models, callbacks
 import matplotlib.pyplot as plt
+from typing import Dict, List
 
 class NeuralDiagnosticModel:
     """
@@ -204,3 +205,18 @@ class NeuralDiagnosticModel:
         plt.tight_layout()
         plt.savefig("nn_training.png", dpi=150)
         plt.show()
+        
+if __name__ == "__main__":
+    nn = NeuralDiagnosticModel()
+
+    result = nn.predict([
+        "fever",
+        "cough",
+        "fatigue",
+        "headache"
+    ])
+
+    print("\nPrediction:")
+    print(result)
+
+    nn.plot_training()
