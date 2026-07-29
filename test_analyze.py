@@ -44,3 +44,13 @@ for disease, confidence in result["all_inferred"].items():
 # Explanation
 print("\n--- EXPLANATION ---")
 print(kb.get_explanation(result["diagnosis"]))
+print("\n--- FORWARD CHAINING TEST ---")
+forward_results = kb.forward_chain(verbose=True)
+print(forward_results)
+
+
+print("\n--- BACKWARD CHAINING TEST ---")
+proved, confidence = kb.backward_chain("covid19_suspected")
+
+print("COVID suspected:", proved)
+print("Confidence:", confidence)
