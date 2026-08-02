@@ -55,4 +55,22 @@ def build_system() -> HealthcareDiagnosticAgent:
         'BayesianNet':   SimpleBayesianDiagnostics(),  
         'MLClassifier':  MLDiagnosticClassifier(),  
         'NeuralNetwork': NeuralDiagnosticModel(),  
-        'Fuzzy
+        'FuzzySeverity': FuzzySeverityAssessor(),
+    }
+      # Register each module with the agent
+    for name, module in modules.items():
+        agent.register_module(name, module)
+        print(f"✓ {name} loaded")
+
+    print("\nAll modules successfully registered.\n")
+
+    return agent
+def main():
+    banner()
+
+    agent = build_system()
+
+    print("System initialized successfully!")
+
+if __name__ == "__main__":
+    main()
