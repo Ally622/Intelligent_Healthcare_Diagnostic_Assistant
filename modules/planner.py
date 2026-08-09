@@ -205,11 +205,32 @@ class TreatmentPlanner:
         durations = [a['duration'] for a in plan]
         return f"{len(plan)} actions | see individual durations"
 
-    def analyze(self, percept) -> Dict:
-        """Module interface — generates a sample plan"""
-        # This is called post-diagnosis; use KB result
-        result = self.create_treatment_plan('flu', 'MEDIUM')
-        result['summary']    = f"Plan: {result['steps']} steps generated"
-        result['diagnosis']  = 'flu'
-        result['confidence'] = 0.7
+    def analyze(self, percept):
+        """Generate a treatment plan using available diagnosis information."""
+
+        # The planner expects a diagnosis and urgency.
+        # These may be supplied by the agent after diagnosis.
+        diagnosis = getattr(percept, "diagnosis", None)
+        urgency = getattr(percept, "urgency", "LOW")
+
+        # If diagnosis information is not yet available,
+        # return a clear planner status instead of crashing.
+        if not diagnosis:
+            return {
+                "diagnosis": "Not yet determined",
+                "urgency": urgency,
+                "steps": 0,
+                "plan": [],
+                "summary": "Treatment plan requires a completed diagnosis"
+            }
+
+        result = self.create_treatment_plan(
+            diagnosis,
+            urgency
+        )
+
+        result["summary"] = (
+            f"Plan: {result.get('steps', 0)} steps generated"
+        )
+
         return result
