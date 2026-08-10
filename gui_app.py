@@ -283,24 +283,67 @@ if st.button(
         st.header("🏥 Diagnosis Report")
 
 
-        # --------------------------------------------------
-        # Extract report information
-        # --------------------------------------------------
+      # --------------------------------------------------
+# Extract diagnosis
+# --------------------------------------------------
 
-        diagnosis = report.get(
+diagnosis = report.get("diagnosis")
+
+# If diagnosis is not directly in the report,
+# search the individual module results.
+if not diagnosis:
+
+    try:
+        results = agent.memory.diagnosis_history[-1]
+
+        possible_keys = [
             "diagnosis",
-            "Unknown"
-        )
+            "disease",
+            "predicted_disease",
+            "prediction",
+            "final_diagnosis",
+            "primary_diagnosis",
+            "condition"
+        ]
 
-        confidence = report.get(
-            "confidence",
-            0
-        )
+        for module_output in results.values():
 
-        urgency = report.get(
-            "urgency",
-            "UNKNOWN"
-        )
+            if isinstance(module_output, dict):
+
+                for key in possible_keys:
+
+                    if key in module_output:
+
+                        value = module_output[key]
+
+                        if value:
+                            diagnosis = value
+                            break
+
+            if diagnosis:
+                break
+
+    except Exception:
+        pass
+
+
+if not diagnosis:
+    diagnosis = "Diagnosis not returned"
+
+
+# --------------------------------------------------
+# Extract remaining report information
+# --------------------------------------------------
+
+confidence = report.get(
+    "confidence",
+    0
+)
+
+urgency = report.get(
+    "urgency",
+    "UNKNOWN"
+)
 
         recommendations = report.get(
             "recommendations",
