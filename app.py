@@ -13,6 +13,7 @@ import matplotlib.gridspec as gridspec
 warnings.filterwarnings('ignore')  
 
 # Import all modules  
+from modules import agent
 from modules.agent          import HealthcareDiagnosticAgent, PatientPercept  
 from modules.knowledge_base import MedicalKnowledgeBase  
 from modules.bayesian_net   import SimpleBayesianDiagnostics  
@@ -55,4 +56,59 @@ def build_system() -> HealthcareDiagnosticAgent:
         'BayesianNet':   SimpleBayesianDiagnostics(),  
         'MLClassifier':  MLDiagnosticClassifier(),  
         'NeuralNetwork': NeuralDiagnosticModel(),  
-        'Fuzzy
+        'FuzzySeverity': FuzzySeverityAssessor(),
+    }
+      # Register each module with the agent
+    for name, module in modules.items():
+        agent.register_module(name, module)
+        print(f"✓ {name} loaded")
+
+    print("\nAll modules successfully registered.\n")
+
+    return agent
+def main():
+    banner()
+
+    agent = build_system()
+
+    print("System initialized successfully!")
+    print("\n===== PATIENT INFORMATION =====")
+
+    patient_id = input("Patient ID: ")
+    age = int(input("Age: "))
+    temperature = float(input("Temperature (°C): "))
+    heart_rate = int(input("Heart Rate: "))
+    blood_pressure = input("Blood Pressure: ")
+
+    symptoms = input(
+        "Symptoms (comma separated): "
+    ).split(",")
+
+    symptoms = [s.strip().lower() for s in symptoms]
+    patient = PatientPercept(
+        patient_id=patient_id,
+        symptoms=symptoms,
+        age=age,
+        temperature=temperature,
+        heart_rate=heart_rate,
+        blood_pressure=blood_pressure
+    )
+    report = agent.run(patient)
+    print("\n===== DIAGNOSIS REPORT =====")
+
+    for key, value in report.items():
+        print(f"{key}: {value}")
+
+    print("\n===== MODULE RESULTS =====")
+
+    module_results = agent.memory.diagnosis_history[-1]
+
+    for module_name, result in module_results.items():
+        print(f"\n--- {module_name} ---")
+
+        if isinstance(result, dict):
+            for k, v in result.items():
+                print(f"{k}: {v}")
+
+if __name__ == "__main__":
+    main()
