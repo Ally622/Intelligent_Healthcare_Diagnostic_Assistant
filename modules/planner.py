@@ -209,7 +209,7 @@ class TreatmentPlanner:
         """Module interface — generates a sample plan"""
         # This is called post-diagnosis; use KB result
         result = self.create_treatment_plan('flu', 'MEDIUM')
-        result['summary']    = f"Plan: {result['steps']} steps generated"
+        result['summary'] = f"Plan: {len(result.get('steps', []))} steps generated"
         result['diagnosis']  = 'flu'
         result['confidence'] = 0.7
         return result
