@@ -1,7 +1,7 @@
 # ============================================================
 # MODULE 5: Deep Neural Network Diagnostic Model
 # Covers: Week 10 (Neural Networks)
-# ============================================================
+# ========================================================
 
 import numpy as np
 import tensorflow as tf
