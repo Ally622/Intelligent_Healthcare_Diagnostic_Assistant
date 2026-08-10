@@ -226,53 +226,33 @@ if selected:
 # ==========================================================
 # RUN DIAGNOSIS
 # ==========================================================
-
 if st.button(
     "🚀 Run Diagnosis",
     type="primary"
 ):
 
     if not patient_id.strip():
-
         st.warning("Please enter a Patient ID.")
 
     elif not selected:
-
-        st.warning(
-            "Please select at least one symptom."
-        )
+        st.warning("Please select at least one symptom.")
 
     else:
 
-        # --------------------------------------------------
-        # Create Patient Percept
-        # --------------------------------------------------
-
         patient = PatientPercept(
-
             patient_id=patient_id,
-
             symptoms=selected,
-
             age=age,
-
             temperature=temperature,
-
             heart_rate=heart_rate,
-
             blood_pressure=blood_pressure
         )
-
-        # --------------------------------------------------
-        # Run COMPLETE AI SYSTEM
-        # --------------------------------------------------
 
         with st.spinner(
             "Running Knowledge Base, Bayesian, ML, Neural Network and Fuzzy analysis..."
         ):
 
             report = agent.run(patient)
-
 
         # ==================================================
         # DIAGNOSIS REPORT
@@ -282,67 +262,54 @@ if st.button(
 
         st.header("🏥 Diagnosis Report")
 
-# --------------------------------------------------
-# Extract diagnosis
-# --------------------------------------------------
+        # Extract diagnosis
+        diagnosis = report.get("diagnosis")
 
-diagnosis = report.get("diagnosis")
+        if not diagnosis:
 
-# If diagnosis is not directly in the report,
-# search the individual module results.
-if not diagnosis:
+            try:
+                results = agent.memory.diagnosis_history[-1]
 
-    try:
-        results = agent.memory.diagnosis_history[-1]
+                possible_keys = [
+                    "diagnosis",
+                    "disease",
+                    "predicted_disease",
+                    "prediction",
+                    "final_diagnosis",
+                    "primary_diagnosis",
+                    "condition"
+                ]
 
-        possible_keys = [
-            "diagnosis",
-            "disease",
-            "predicted_disease",
-            "prediction",
-            "final_diagnosis",
-            "primary_diagnosis",
-            "condition"
-        ]
+                for module_output in results.values():
 
-        for module_output in results.values():
+                    if isinstance(module_output, dict):
 
-            if isinstance(module_output, dict):
+                        for key in possible_keys:
 
-                for key in possible_keys:
+                            if key in module_output:
 
-                    if key in module_output:
+                                value = module_output[key]
 
-                        value = module_output[key]
+                                if value:
+                                    diagnosis = value
+                                    break
 
-                        if value:
-                            diagnosis = value
-                            break
+                    if diagnosis:
+                        break
 
-            if diagnosis:
-                break
+            except Exception:
+                pass
 
-    except Exception:
-        pass
+        if not diagnosis:
+            diagnosis = "Diagnosis not returned"
 
+        # Extract remaining report information
+        confidence = report.get("confidence", 0)
 
-if not diagnosis:
-    diagnosis = "Diagnosis not returned"
-
-
-# --------------------------------------------------
-# Extract remaining report information
-# --------------------------------------------------
-
-confidence = report.get(
-    "confidence",
-    0
-)
-
-urgency = report.get(
-    "urgency",
-    "UNKNOWN"
-)
+        urgency = report.get(
+            "urgency",
+            "UNKNOWN"
+        )
 
         recommendations = report.get(
             "recommendations",
@@ -354,13 +321,11 @@ urgency = report.get(
             "No action specified"
         )
 
-
         # ==================================================
         # MAIN RESULTS
         # ==================================================
 
         result_col1, result_col2, result_col3 = st.columns(3)
-
 
         with result_col1:
 
@@ -369,7 +334,6 @@ urgency = report.get(
                 str(diagnosis).replace("_", " ").title()
             )
 
-
         with result_col2:
 
             st.metric(
@@ -377,34 +341,25 @@ urgency = report.get(
                 f"{float(confidence) * 100:.1f}%"
             )
 
-
         with result_col3:
 
             if str(urgency).upper() == "CRITICAL":
 
-                st.error(
-                    f"🚨 {urgency}"
-                )
+                st.error(f"🚨 {urgency}")
 
             elif str(urgency).upper() == "HIGH":
 
-                st.warning(
-                    f"⚠️ {urgency}"
-                )
+                st.warning(f"⚠️ {urgency}")
 
             else:
 
-                st.info(
-                    f"ℹ️ {urgency}"
-                )
-
+                st.info(f"ℹ️ {urgency}")
 
         # ==================================================
         # URGENCY / CRITICAL STATUS
         # ==================================================
 
         st.subheader("🚨 Patient Status")
-
 
         if str(urgency).upper() == "CRITICAL":
 
@@ -430,13 +385,11 @@ urgency = report.get(
                 "✅ LOW RISK based on the current assessment."
             )
 
-
         # ==================================================
         # RECOMMENDATIONS
         # ==================================================
 
         st.subheader("💊 Recommendations")
-
 
         if recommendations:
 
@@ -452,7 +405,6 @@ urgency = report.get(
                 "No recommendations were returned."
             )
 
-
         # ==================================================
         # NEXT ACTION
         # ==================================================
@@ -460,12 +412,8 @@ urgency = report.get(
         st.subheader("➡️ Recommended Next Action")
 
         st.info(
-            str(next_action).replace(
-                "_",
-                " "
-            )
+            str(next_action).replace("_", " ")
         )
-
 
         # ==================================================
         # PATIENT SUMMARY
@@ -499,15 +447,12 @@ urgency = report.get(
             )
         )
 
-
         # ==================================================
         # INDIVIDUAL MODULE RESULTS
         # ==================================================
 
         st.header("🧠 Individual AI Module Results")
 
-
-        # Get latest results from agent memory
         try:
 
             results = agent.memory.diagnosis_history[-1]
@@ -516,12 +461,9 @@ urgency = report.get(
 
             results = {}
 
-
         for module, output in results.items():
 
-            with st.expander(
-                f"🔹 {module}"
-            ):
+            with st.expander(f"🔹 {module}"):
 
                 if isinstance(output, dict):
 
@@ -531,13 +473,11 @@ urgency = report.get(
 
                     st.write(output)
 
-
         # ==================================================
         # COMPLETE RAW REPORT
         # ==================================================
 
-        with st.expander(
-            "📄 Complete Diagnosis Report"
-        ):
+        with st.expander("📄 Complete Diagnosis Report"):
 
             st.json(report)
+
