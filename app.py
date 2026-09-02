@@ -2,7 +2,7 @@
 # CAPSTONE MAIN APPLICATION  
 # Intelligent Healthcare Diagnostic Assistant  
 # Introduction to AI — 13-Week Capstone  
-# ============================================================  
+# =============================================================
 
 import sys  
 import json  
